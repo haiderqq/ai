@@ -175,7 +175,7 @@ def broadcast_message(message):
             bot.send_message(user_chat_id[0], text)
         except Exception as e:
             print(f"Error sending message to {user_chat_id}: {e}")
-
+            
 @bot.message_handler(commands=['send_message'])
 def send_direct_message(message):
     if message.chat.type != 'private':

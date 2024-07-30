@@ -5,20 +5,13 @@ import google.generativeai as genai
 import psycopg2
 import PIL.Image
 import io
-'''
-git add .
-git commit -m "Update files"
-git push heroku master
-'''
 
-'''
-git remote add origin https://github.com/haiderqq/ai-bot.git
-'''
-bot = telebot.TeleBot(token="7164391412:AAGu3pMKXXfgQHDGQKwggacdvSQuASW54EA")
+token = "7164391412:AAGu3pMKXXfgQHDGQKwggacdvSQuASW54EA"
+bot = telebot.TeleBot(token)
 ADMIN_ID = 1214392661
 channel_name = "@botifl_ai"
-# إعداد الاتصال بقاعدة البيانات
 DATABASE_URL = "postgres://koyeb-adm:hVa57pEYmJNI@ep-summer-thunder-a2u8j8ss.eu-central-1.pg.koyeb.app/koyebdb"
+
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
 
@@ -73,7 +66,7 @@ def change_language(call: CallbackQuery):
         user_data['preferred_language'] = new_language
         save_user_data(user_id, user_data)
         bot.send_message(call.message.chat.id, f"Language changed to {new_language}")
-        
+
 def get_text(key, language='ar'):
     texts = {
         'ar': {
@@ -121,13 +114,13 @@ def get_user_language_from_db(user_id):
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    welcome_message = "<b>مرحبًا انا بوت Chatgpt تم انشائي من قبل المبرمج @hd0rr , كيف يمكنني مساعدتك .؟</b>\n\nيمكنك استخدام هذا البوت لطرح الأسئلة على الذكاء الاصطناعي، فقط قم بارسال رسالة وسيقوم البوت بالرد عليك."
     chat_id = message.chat.id
     user_id = str(chat_id)
     user_data = get_user_data(user_id)
     if not user_data:
         save_user_data(user_id, {'total_messages_sent': 0, 'preferred_language': 'ar'})
         user_data = {'total_messages_sent': 0, 'preferred_language': 'ar'}
+
     user_language = user_data['preferred_language']
     welcome_message = get_text('welcome', user_language)
     # إرسال الرسالة المرحبة وتحديث اللغة بناءً على تفضيلات المستخدم
@@ -141,15 +134,9 @@ def send_welcome(message):
     language_button_en = InlineKeyboardButton("English", callback_data='lang_en')
     language_button_fr = InlineKeyboardButton("Français", callback_data='lang_fr')
     keyboard.add(language_button_ar, language_button_en, language_button_fr)
-    
-    if message.from_user.id == ADMIN_ID:
-        admin_button1 = InlineKeyboardButton("عدد المشتركين", callback_data='subscribers_count')
-        admin_button2 = InlineKeyboardButton("إرسال رسالة جماعية", callback_data='broadcast')
-        admin_button3 = InlineKeyboardButton("إرسال رسالة مباشرة", callback_data='send_message')
-        keyboard.add(admin_button1)
-        keyboard.add(admin_button2, admin_button3)
-    
+
     bot.send_message(chat_id, welcome_message, parse_mode='HTML', reply_markup=keyboard)
+
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call: CallbackQuery):
@@ -165,24 +152,15 @@ def callback_query(call: CallbackQuery):
             cur.close()
             conn.close()
             bot.send_message(call.message.chat.id, f"عدد المشتركين في البوت: {count}")
-    
-    elif call.data == 'broadcast':
-        if call.from_user.id == ADMIN_ID:
-            msg = bot.send_message(call.message.chat.id, "يرجى إدخال الرسالة التي تريد إرسالها لجميع المشتركين:")
-            bot.register_next_step_handler(msg, broadcast_message)
 
-    elif call.data == 'send_message':
-        if call.from_user.id == ADMIN_ID:
-            msg = bot.send_message(call.message.chat.id, "يرجى إدخال هوية المستخدم والرسالة بالشكل التالي: user_id message")
-            bot.register_next_step_handler(msg, send_direct_message)
-
+@bot.message_handler(commands=['broadcast'])
 def broadcast_message(message):
     if message.chat.type != 'private':
         return
     user_id = message.from_user.id
     if user_id != ADMIN_ID:
         return
-    text = message.text.strip()
+    text = message.text.replace('/broadcast', '').strip()
     if not text:
         bot.send_message(message.chat.id, "عذراً، لا يمكن إرسال رسالة فارغة.")
         return
@@ -198,27 +176,28 @@ def broadcast_message(message):
         except Exception as e:
             print(f"Error sending message to {user_chat_id}: {e}")
 
+@bot.message_handler(commands=['send_message'])
 def send_direct_message(message):
     if message.chat.type != 'private':
         return
     user_id = message.from_user.id
     if user_id != ADMIN_ID:
         return
-    text = message.text.strip()
+    text = message.text.replace('/send_message', '').strip()
     if not text:
         bot.send_message(message.chat.id, "عذراً، لا يمكن إرسال رسالة فارغة.")
         return
     parts = text.split(' ', 1)
     if len(parts) != 2:
-        bot.send_message(message.chat.id, "يرجى استخدام الأمر بالصيغة الصحيحة: user_id message")
+        bot.send_message(message.chat.id, "يرجى استخدام الأمر بالصيغة الصحيحة: /send_message user_id message")
         return
     target_user_id, text_message = parts
     try:
-        bot.send_message(target_user_id, text_message)
+        bot.send_message(target_user_id, text_message, parse_mode='markdown')
         bot.send_message(message.chat.id, f"تم إرسال رسالتك إلى المستخدم ذو الهوية {target_user_id}")
     except Exception as e:
         bot.send_message(message.chat.id, f"حدث خطأ أثناء إرسال الرسالة: {e}")
-
+        
 def gpt(text) -> str:
     genai.configure(api_key='AIzaSyDuaXa8eeF_Mkoo_47tpGTrYdameWStWs0')
     model = genai.GenerativeModel('models/gemini-1.5-pro-latest')
@@ -227,6 +206,7 @@ def gpt(text) -> str:
         return result.text
     except:
         return None
+
 @bot.message_handler(commands=['reply'])
 def reply_message(message):
     if message.reply_to_message:
@@ -246,11 +226,10 @@ def reply_message(message):
             return
 
         replied_message = message.reply_to_message
-        chat_id = replied_message.chat.id  # توجيه الرد في نفس المجموعة التي تم فيها الرد
         response = gpt(replied_message.text)
 
         if response:
-            bot.send_message(chat_id, f"@{replied_message.from_user.username}\n{response}")  # إرسال الرد في المجموعة مع اسم المستخدم
+            bot.send_message(chat_id, f"@{replied_message.from_user.username}\n{response}")
             user_data['total_messages_sent'] += 1
             save_user_data(user_id, user_data)
         else:
@@ -259,84 +238,70 @@ def reply_message(message):
         user_id = str(message.from_user.id)  # Define user_id here
         language = get_user_language_from_db(user_id)
         bot.send_message(message.chat.id, get_text('help_txt', language))
+      
 @bot.message_handler(func=lambda message: True, content_types=['text'])
 def handle_message(message):
-    if message.chat.type == 'private' or message.text.startswith("/ask"):
-        chat_id = message.chat.id
-        user_id = str(message.from_user.id)
+    chat_id = message.chat.id
+    user_id = str(message.from_user.id)
 
-        user_data = get_user_data(user_id)
-        if not user_data:
-            save_user_data(user_id, {'total_messages_sent': 0, 'preferred_language': 'ar'})
-            user_data = {'total_messages_sent': 0, 'preferred_language': 'ar'}
+    user_data = get_user_data(user_id)
+    if not user_data:
+        save_user_data(user_id, {'total_messages_sent': 0, 'preferred_language': 'ar'})
+        user_data = {'total_messages_sent': 0, 'preferred_language': 'ar'}
 
-        user_language = user_data['preferred_language']
-        language = get_user_language_from_db(user_id)
-        member = bot.get_chat_member(chat_id=channel_name, user_id=user_id)
-        if member.status not in ["member", "administrator", "creator"]:
-            bot.send_message(chat_id, get_text('channel', language))
-            return
+    user_language = user_data['preferred_language']
+    language = get_user_language_from_db(user_id)
+    member = bot.get_chat_member(chat_id=channel_name, user_id=user_id)
+    if member.status not in ["member", "administrator", "creator"]:
+        bot.send_message(chat_id, get_text('channel', language))
+        return
 
-        if message.text.startswith("/reply"):  # توجيه استخدام /reply إلى reply_message
-            reply_message(message)
-            return
-
-        text = message.text.replace("/ask", "").strip()
-
-        if not text:
-            bot.send_message(chat_id, "يرجى كتابة نص بعد /ask لكي أستطيع مساعدتك.")
-            return
-
-        bot.send_chat_action(chat_id, 'typing')
-        bot.reply_to(message, "📝")
-
-        response = gpt(text)
-        bot.send_chat_action(chat_id, 'cancel')
-        bot.reply_to(message, response)
-
+    response = gpt(message.text)
+    if response:
+        bot.send_message(chat_id, response)
         user_data['total_messages_sent'] += 1
         save_user_data(user_id, user_data)
-
+    else:
+        bot.send_message(chat_id, "عذراً، لا يمكن الحصول على إجابة في الوقت الحالي.")
+# الفرنسية: Désolé, il n'est pas possible d'obtenir une réponse pour le moment.
+# الإنجليزية: Sorry, it is not possible to get an answer at the moment.
 
 @bot.message_handler(content_types=['photo'])
 def handle_photo(message):
+    chat_id = message.chat.id
+    user_id = str(message.from_user.id)
+
+    user_data = get_user_data(user_id)
+    if not user_data:
+        save_user_data(user_id, {'total_messages_sent': 0, 'preferred_language': 'ar'})
+        user_data = {'total_messages_sent': 0, 'preferred_language': 'ar'}
+
+    user_language = user_data['preferred_language']
+    language = get_user_language_from_db(user_id)
+    member = bot.get_chat_member(chat_id=channel_name, user_id=user_id)
+    if member.status not in ["member", "administrator", "creator"]:
+        bot.send_message(chat_id, get_text('channel', language))
+        return
+
+    file_info = bot.get_file(message.photo[-1].file_id)
+    file = bot.download_file(file_info.file_path)
+    image = PIL.Image.open(io.BytesIO(file))
+    description = gpt_image(image)
+
+    if description:
+        bot.send_message(chat_id, description)
+        user_data['total_messages_sent'] += 1
+        save_user_data(user_id, user_data)
+    else:
+        bot.send_message(chat_id, "عذراً، لا يمكن الحصول على وصف للصورة في الوقت الحالي.")
+
+def gpt_image(image: PIL.Image.Image) -> str:
+    genai.configure(api_key='AIzaSyDuaXa8eeF_Mkoo_47tpGTrYdameWStWs0')
+    model = genai.GenerativeModel('models/image-gemini-1.5-pro')
+    result = model.generate_content(image)
     try:
-        if message.chat.type == 'private' or message.chat.type in ['group', 'supergroup']:
-            chat_id = message.chat.id
-            user_id = str(message.from_user.id)
-
-            user_data = get_user_data(user_id)
-            if not user_data:
-                save_user_data(user_id, {'total_messages_sent': 0, 'preferred_language': 'ar'})
-                user_data = {'total_messages_sent': 0, 'preferred_language': 'ar'}
-
-            user_language = user_data['preferred_language']
-            language = get_user_language_from_db(user_id)
-            member = bot.get_chat_member(chat_id=channel_name, user_id=user_id)
-            if member.status not in ["member", "administrator", "creator"]:
-                bot.send_message(chat_id, get_text('channel', language))
-                return
-            file_id = message.photo[-1].file_id
-            file_info = bot.get_file(file_id)
-            downloaded_file = bot.download_file(file_info.file_path)
-
-            image = PIL.Image.open(io.BytesIO(downloaded_file))
-
-            text = message.caption if message.caption else "وصف الصورة"
-
-            bot.reply_to(message, "📝")
-            genai.configure(api_key='AIzaSyDuaXa8eeF_Mkoo_47tpGTrYdameWStWs0')
-
-            model = genai.GenerativeModel('models/gemini-1.5-flash')
-            response = model.generate_content([text, image], stream=True)
-            response.resolve()
-
-            bot.reply_to(message, response.text)
-
-            user_data['total_messages_sent'] += 1
-            save_user_data(user_id, user_data)
-    except Exception as e:
-        print(e)
-        bot.reply_to(message, "حدث خطأ أثناء معالجة الصورة.")
+        return result.text
+    except:
+        return None
 
 bot.infinity_polling()
